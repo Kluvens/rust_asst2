@@ -54,7 +54,14 @@ where
     let (mut recv, mut send) = manager.accept_new_connection().unwrap();
     loop {
         info!("Just got message");
-        let msg = recv.read_message()?;
+        let msg = match recv.read_message() {
+            Ok(msg) => {
+                msg
+            },
+            Err(_) => {
+                return Ok(());
+            }
+        };
         let reply = spreadsheet_manager.handle_message(&msg);
         send.write_message(reply)?;
     }
