@@ -1,4 +1,5 @@
 use rsheet_lib::cell_value::{self, CellValue};
+use rsheet_lib::command_runner::{ CellArgument, CommandRunner };
 use rsheet_lib::connect::{Manager, Reader, Writer};
 use rsheet_lib::replies::Reply;
 
@@ -33,13 +34,17 @@ impl SpreadsheetManager {
             "set" if parts.len() >= 3 => {
                 let cell_name = parts[1].to_string();
                 let value_str = parts[2..].join(" ");
+                let mut cells = self.cells.lock().unwrap();
+                let variables = cells.iter()
+                    .map(|(key, value)| (key.clone(), CellArgument::Value(value.clone())))
+                    .collect::<HashMap<String, CellArgument>>();
                 let value = if let Ok(num) = value_str.parse::<i64>() {
                     CellValue::Int(num)
                 } else {
-                    CellValue::String(value_str)
+                    CommandRunner::new(&value_str).run(&variables)
                 };
-                let mut cells = self.cells.lock().unwrap();
-                cells.insert(cell_name, value.clone());
+
+                cells.insert(cell_name, value);
                 None
             },
             _ => Some(Reply::Error("Invalid command".to_string())),
