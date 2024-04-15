@@ -39,7 +39,7 @@ impl SpreadsheetManager {
                 };
                 let mut cells = self.cells.lock().unwrap();
                 cells.insert(cell_name, value.clone());
-                Reply::Value("Set completed".to_string(), value)
+                Reply::Value("".to_string(), value)
             },
             _ => Reply::Error("Invalid command".to_string()),
         }
