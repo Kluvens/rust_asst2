@@ -4,6 +4,7 @@ use rsheet_lib::replies::Reply;
 
 use std::collections::HashMap;
 use std::error::Error;
+use std::ops::Rem;
 use std::sync::{Arc, Mutex};
 
 use log::info;
@@ -17,7 +18,7 @@ impl SpreadsheetManager {
         Self { cells: Arc::new(Mutex::new(HashMap::new())) }
     }
 
-    pub fn handle_message(&self, message: &str) -> Reply {
+    pub fn handle_message(&self, message: &str) -> Option<Reply> {
         let parts: Vec<&str> = message.trim().split_whitespace().collect();
         match parts[0] {
             "get" if parts.len() == 2 => {
@@ -25,8 +26,8 @@ impl SpreadsheetManager {
                 let cells = self.cells.lock().unwrap();
                 let cell_value = cells.get(cell_name);
                 match cell_value {
-                    Some(value) => Reply::Value(cell_name.to_string(), value.clone()),
-                    None => Reply::Value(cell_name.to_string(), CellValue::None),
+                    Some(value) => Some(Reply::Value(cell_name.to_string(), value.clone())),
+                    None => Some(Reply::Value(cell_name.to_string(), CellValue::None)),
                 }
             },
             "set" if parts.len() >= 3 => {
@@ -39,9 +40,9 @@ impl SpreadsheetManager {
                 };
                 let mut cells = self.cells.lock().unwrap();
                 cells.insert(cell_name, value.clone());
-                Reply::Value("".to_string(), CellValue::None)
+                None
             },
-            _ => Reply::Error("Invalid command".to_string()),
+            _ => Some(Reply::Error("Invalid command".to_string())),
         }
     }
 }
@@ -63,6 +64,14 @@ where
             }
         };
         let reply = spreadsheet_manager.handle_message(&msg);
-        send.write_message(reply)?;
+        match reply {
+            Some(replay_msg) => {
+                send.write_message(replay_msg)?;
+            },
+            None => {
+                return Ok(());
+            }
+        }
+        
     }
 }
