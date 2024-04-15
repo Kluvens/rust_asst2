@@ -69,9 +69,7 @@ where
                 send.write_message(replay_msg)?;
             },
             None => {
-                return Ok(());
             }
         }
-        
     }
 }
