@@ -33,7 +33,7 @@ pub fn handle_message(message: &str, cells: &Arc<Mutex<HashMap<String, CellValue
             let mut variables = HashMap::new();
 
             for part in parts {
-                if part.contains("_") {
+                if part.contains("_") && part.contains("sum") {
                     if let Some(matrix_arg) = parse_matrix_variable(part, cells) {
                         variables.insert(remove_sum_expression(part), matrix_arg);
                     } else if let Some(vector_arg) = parse_matrix_variable(part, cells) {
