@@ -43,6 +43,8 @@ pub fn handle_message(message: &str, cells: &Arc<Mutex<HashMap<String, CellValue
                 } else {
                     if let Some(value) = cells.lock().unwrap().get(&var) {
                         variables.insert(remove_sum_expression(&var), CellArgument::Value(value.clone()));
+                    } else {
+                        variables.insert(var, CellArgument::Value(CellValue::None));
                     }
                 }
             }
