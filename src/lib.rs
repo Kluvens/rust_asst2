@@ -30,20 +30,19 @@ pub fn handle_message(message: &str, cells: &Arc<Mutex<HashMap<String, CellValue
             let cell_name = parts[1].to_string();
             let parts_var = parts[2..].to_vec();
             let parts_var_str = parts_var.join(" ");
+            let str_variables = CommandRunner::new(&parts_var_str).find_variables();
             let mut variables = HashMap::new();
 
-            for part in parts {
-                if part.contains("_") && part.contains("sum") {
-                    if let Some(matrix_arg) = parse_matrix_variable(part, cells) {
-                        variables.insert(remove_sum_expression(part), matrix_arg);
-                    } else if let Some(vector_arg) = parse_matrix_variable(part, cells) {
-                        variables.insert(remove_sum_expression(part), vector_arg);
+            for var in str_variables {
+                if var.contains("_") {
+                    if let Some(matrix_arg) = parse_matrix_variable(&var, cells) {
+                        variables.insert(var, matrix_arg);
+                    } else if let Some(vector_arg) = parse_matrix_variable(&var, cells) {
+                        variables.insert(var, vector_arg);
                     }
                 } else {
-                    if let Ok(value) = part.parse::<i64>() {
-                        variables.insert(remove_sum_expression(part), CellArgument::Value(CellValue::Int(value)));
-                    } else if let Some(value) = cells.lock().unwrap().get(part) {
-                        variables.insert(remove_sum_expression(part), CellArgument::Value(value.clone()));
+                    if let Some(value) = cells.lock().unwrap().get(&var) {
+                        variables.insert(remove_sum_expression(&var), CellArgument::Value(value.clone()));
                     }
                 }
             }
