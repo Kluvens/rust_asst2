@@ -1,9 +1,11 @@
 use clap::value_parser;
 use rsheet_lib::cell_value::{self, CellValue};
+use rsheet_lib::cells::column_name_to_number;
 use rsheet_lib::command_runner::{ CellArgument, CommandRunner };
 use rsheet_lib::connect::{Manager, Reader, Writer};
 use rsheet_lib::replies::Reply;
 
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::mpsc::RecvError;
@@ -35,21 +37,18 @@ pub fn handle_message(message: &str, cells: &Arc<Mutex<HashMap<String, CellValue
 
             for var in str_variables {
                 if var.contains("_") {
-                    if let Some(matrix_arg) = parse_matrix_variable(&var, cells) {
-                        variables.insert(var, matrix_arg);
-                    } else if let Some(vector_arg) = parse_matrix_variable(&var, cells) {
-                        variables.insert(var, vector_arg);
-                    }
+                    let cell_arg = parse_variable(&var, cells);
+                    variables.insert(var, cell_arg);
                 } else {
                     if let Some(value) = cells.lock().unwrap().get(&var) {
-                        variables.insert(remove_sum_expression(&var), CellArgument::Value(value.clone()));
+                        variables.insert(var, CellArgument::Value(value.clone()));
                     } else {
                         variables.insert(var, CellArgument::Value(CellValue::None));
                     }
                 }
             }
             
-            let value = CommandRunner::new(&remove_sum_expression(&parts_var_str)).run(&variables);
+            let value = CommandRunner::new(&parts_var_str).run(&variables);
 
             {
                 let mut cells = cells.lock().unwrap();
@@ -61,8 +60,47 @@ pub fn handle_message(message: &str, cells: &Arc<Mutex<HashMap<String, CellValue
     }
 }
 
-fn parse_matrix_variable(variable: &str, cells: &Arc<Mutex<HashMap<String, CellValue>>>) -> Option<CellArgument> {
-    todo!()
+fn parse_variable(variable: &str, cells: &Arc<Mutex<HashMap<String, CellValue>>>) -> CellArgument {
+    let parts: Vec<&str> = variable.split('_').collect();
+
+    let (start, end) = (parts[0], parts[1]);
+    let start_col = start.chars().filter(|c| c.is_alphabetic()).collect::<String>();
+    let start_row = start.chars().filter(|c| c.is_numeric()).collect::<String>();
+
+    let end_col = end.chars().filter(|c| c.is_alphabetic()).collect::<String>();
+    let end_row = end.chars().filter(|c| c.is_numeric()).collect::<String>();
+
+    let start_col_idx = column_name_to_number(&start_col);
+    let end_col_idx = column_name_to_number(&end_col);
+
+    let start_row_idx: usize = start_row.parse::<usize>().expect("Invalid row number") - 1;
+    let end_row_idx: usize = end_row.parse::<usize>().expect("Invalid row number") - 1;
+
+    if start_col == end_col {
+        let mut vector = Vec::new();
+
+        for row in start_row_idx..=end_row_idx {
+            let cell_key = format!("{}{}", start_col, row + 1);
+            let cell_value = cells.lock().unwrap().get(&cell_key).unwrap().clone();
+            vector.push(cell_value);
+        }
+
+        return CellArgument::Vector(vector);
+    }
+
+    let mut matrix = Vec::new();
+
+    for row in start_row_idx..=end_row_idx {
+        let mut current_row = Vec::new();
+        for col in start_col_idx..=end_col_idx {
+            let cell_key = format!("{}{}", (col as u8 + 'A' as u8) as char, row + 1);
+            let cell_value = cells.lock().unwrap().get(&cell_key).unwrap().clone();
+            current_row.push(cell_value);
+        }
+        matrix.push(current_row);
+    }
+
+    CellArgument::Matrix(matrix)
 }
 
 fn remove_sum_expression(input: &str) -> String {
