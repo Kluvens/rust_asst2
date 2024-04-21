@@ -32,11 +32,12 @@ If this application is single-threaded, I just need to make sure everything occu
 That is, get command from the terminal, get or set the cell, then reset the depedent cells.
 
 ## Question 4:
+This is tricky, I still can't figure it out.
 
 ## Question 5:
-I created a channel, and if a cell was updated, another will receive this information,
-then this thread will try to grab all dependent cells and then update correspondingly.
-This code can be found on start_server, I also used recursion to handle multiple dependencies.
+I created a channel, and if a cell was updated, the program will receive this information,
+then a new thread will try to grab all dependent cells and then update correspondingly.
+This code can be found in start_server, I also used recursion to handle multiple dependencies.
 
 # Questions to the Marker (OPTIONAL)
 
