@@ -1,4 +1,5 @@
 use rsheet_lib::cell_value::CellValue;
+use rsheet_lib::cells::column_name_to_number;
 use rsheet_lib::command_runner::{CellArgument, CommandRunner};
 use rsheet_lib::connect::{Manager, Reader, Writer};
 use rsheet_lib::replies::Reply;
