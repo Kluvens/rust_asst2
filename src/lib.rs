@@ -72,6 +72,7 @@ pub fn handle_message(
                 let mut dependencies = dependencies.lock().unwrap();
 
                 for var in str_variables.clone() {
+
                     let entry = dependencies.entry(var).or_insert(CellDependency {
                         expression: String::new(),
                         dependent_cells: HashSet::new(),
@@ -152,6 +153,36 @@ fn parse_variable(variable: &str, cells: &Arc<Mutex<HashMap<String, CellValue>>>
     CellArgument::Matrix(matrix)
 }
 
+pub fn multiple_dependency(cell_name: String, cloned_cells: Arc<Mutex<HashMap<String, CellValue>>>, cloned_dependencies: Arc<Mutex<HashMap<String, CellDependency>>>) {
+    // println!("{:?}", cell_name);
+    // println!("{:?}", cloned_cells.clone());
+    // println!("{:?}", cloned_dependencies.clone());
+    let mut variables_needed_update = HashSet::new();
+    {
+        let dependencies = cloned_dependencies.lock().unwrap();
+        if let Some(dep) = dependencies.get(&cell_name) {
+            for dependent_cell in &dep.dependent_cells {
+                let cell_dep = dependencies.get(dependent_cell);
+                let dependent_cell_expression = cell_dep.as_ref().map(|cd| cd.expression.clone()).unwrap_or_default();
+                let included_variables = cell_dep.as_ref().map(|cd| cd.included_variables.clone()).unwrap_or_default();
+
+                let variables = included_variables.iter().map(|var| {
+                    let value = cloned_cells.lock().unwrap().get(var).cloned().unwrap_or(CellValue::None);
+                    (var.clone(), CellArgument::Value(value))
+                }).collect::<HashMap<_, _>>();
+
+                let value = CommandRunner::new(&dependent_cell_expression).run(&variables);
+                cloned_cells.lock().unwrap().insert(dependent_cell.clone(), value);
+                variables_needed_update.insert(dependent_cell.clone());
+            }
+        }
+    }
+
+    for var in variables_needed_update {
+        multiple_dependency(var.clone(), cloned_cells.clone(), cloned_dependencies.clone());
+    }
+}
+
 pub fn start_server<M>(mut manager: M) -> Result<(), Box<dyn Error>>
 where
     M: Manager,
@@ -168,24 +199,7 @@ where
         loop {
             match worker_receiver.recv() {
                 Ok((cell_name, cloned_cells, cloned_dependencies)) => {
-                    let dependencies = cloned_dependencies.lock().unwrap();
-                    if let Some(dep) = dependencies.get(&cell_name) {
-                        for dependent_cell in &dep.dependent_cells {
-                            let dependent_cell_expression = dependencies.get(dependent_cell).unwrap().expression.clone();
-                            let included_variables = dependencies.get(dependent_cell).unwrap().included_variables.clone();
-                            let mut variables = HashMap::new();
-                            for var in included_variables {
-                                if let Some(value) = cloned_cells.lock().unwrap().get(&var) {
-                                    variables.insert(var.clone(), CellArgument::Value(value.clone()));
-                                } else {
-                                    variables.insert(var.clone(), CellArgument::Value(CellValue::None));
-                                }
-                            }
-                            let value = CommandRunner::new(&dependent_cell_expression).run(&variables);
-                            let mut cells = cloned_cells.lock().unwrap();
-                            cells.insert(dependent_cell.clone(), value);
-                        }
-                    }
+                    multiple_dependency(cell_name, cloned_cells, cloned_dependencies);
                 }
                 Err(_) => break,
             }
