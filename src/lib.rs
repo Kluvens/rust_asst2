@@ -36,7 +36,7 @@ pub fn handle_message(
             let cell_name = parts[1];
             let cells = cells.lock().unwrap();
             match cells.get(cell_name) {
-                Some(CellValue::Error(err)) => Some(Reply::Error(format!("Cell {} contains an error: {}", cell_name, err))),
+                Some(CellValue::Error(err)) => Some(Reply::Value(cell_name.to_string(), CellValue::Error(err.to_string()))),
                 Some(value) => Some(Reply::Value(cell_name.to_string(), value.clone())),
                 None => Some(Reply::Value(cell_name.to_string(), CellValue::None)),
             }
@@ -69,13 +69,6 @@ pub fn handle_message(
             }
 
             {
-                // let mut dependencies = dependencies.lock().unwrap();
-                // let dependent_cells: Vec<String> = dependencies
-                //     .values()
-                //     .filter_map(|dep| dep.included_variables.iter().any(|v| v == &cell_name).then(|| dep.dependent_cells.clone()))
-                //     .flatten()
-                //     .collect();
-
                 let mut dependencies = dependencies.lock().unwrap();
 
                 for var in str_variables.clone() {
@@ -90,7 +83,7 @@ pub fn handle_message(
                 let dependent_cells = dependencies.entry(cell_name.clone())
                     .or_insert_with(|| CellDependency {
                         expression: parts_var_str.clone(),
-                        dependent_cells: HashSet::new(),  // Initially empty, created if not exists
+                        dependent_cells: HashSet::new(),
                         included_variables: str_variables.clone(),
                     })
                     .dependent_cells
