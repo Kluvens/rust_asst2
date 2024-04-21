@@ -1,5 +1,4 @@
 use rsheet_lib::cell_value::CellValue;
-use rsheet_lib::cells::column_name_to_number;
 use rsheet_lib::command_runner::{CellArgument, CommandRunner};
 use rsheet_lib::connect::{Manager, Reader, Writer};
 use rsheet_lib::replies::Reply;
@@ -38,10 +37,7 @@ pub fn handle_message(
             let cell_name = parts[1];
             let cells = cells.lock().unwrap();
             match cells.get(cell_name) {
-                Some(CellValue::Error(err)) => Some(Reply::Value(
-                    cell_name.to_string(),
-                    CellValue::Error(err.to_string()),
-                )),
+                Some(CellValue::Error(err)) => Some(Reply::Error(err.to_string())),
                 Some(value) => Some(Reply::Value(cell_name.to_string(), value.clone())),
                 None => Some(Reply::Value(cell_name.to_string(), CellValue::None)),
             }
@@ -50,6 +46,16 @@ pub fn handle_message(
             let cell_name = parts[1].to_string();
             let parts_var = parts[2..].to_vec();
             let parts_var_str = parts_var.join(" ");
+
+            if parts_var_str.contains(&cell_name) {
+                let mut cells = cells.lock().unwrap();
+                cells.insert(
+                    cell_name.clone(),
+                    CellValue::Error("Cell is self-referential".to_string()),
+                );
+                return None;
+            }
+
             let str_variables = CommandRunner::new(&parts_var_str).find_variables();
             let mut variables = HashMap::new();
 
