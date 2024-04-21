@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::sync::mpsc::{self};
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{thread};
 
 extern crate regex;
 
@@ -142,6 +142,16 @@ fn parse_variable(variable: &str, cells: &Arc<Mutex<HashMap<String, CellValue>>>
 
         for row in start_row_idx..=end_row_idx {
             let cell_key = format!("{}{}", start_col, row + 1);
+            let cell_value = cells.lock().unwrap().get(&cell_key).unwrap().clone();
+            vector.push(cell_value);
+        }
+
+        return CellArgument::Vector(vector);
+    } else if start_row_idx == end_row_idx {
+        let mut vector = Vec::new();
+
+        for col in start_col_idx..=end_col_idx {
+            let cell_key = format!("{}{}", (col as u8 + b'A') as char, start_row_idx + 1);
             let cell_value = cells.lock().unwrap().get(&cell_key).unwrap().clone();
             vector.push(cell_value);
         }
